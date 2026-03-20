@@ -1,5 +1,4 @@
 const swaggerJsDoc = require("swagger-jsdoc");
-const swaggerUi = require("swagger-ui-express");
 const path = require("path");
 
 const options = {
@@ -39,18 +38,57 @@ function swaggerDocs(app) {
     res.send(swaggerSpec);
   });
 
-  const swaggerUiOptions = {
-    explorer: true,
-    swaggerOptions: {
-      url: "/api-docs.json",
-    },
-  };
+  const docsHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Quizzer API Docs</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+  <style>
+    html, body { margin: 0; padding: 0; }
+    body { background: #fafafa; }
+  </style>
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
+  <script>
+    window.addEventListener("load", function () {
+      SwaggerUIBundle({
+        url: "/api-docs.json",
+        dom_id: "#swagger-ui",
+        deepLinking: true,
+        presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+        layout: "StandaloneLayout"
+      });
+    });
+  </script>
+</body>
+</html>`;
 
-  app.use(
-    "/api-docs",
-    swaggerUi.serveFiles(swaggerSpec, swaggerUiOptions),
-    swaggerUi.setup(swaggerSpec, swaggerUiOptions)
-  );
+  app.get("/api-docs", (req, res) => {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(docsHtml);
+  });
+
+  app.get("/api-docs/", (req, res) => {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(docsHtml);
+  });
+
+  app.get("/api-docs/swagger-ui-bundle.js", (req, res) => {
+    res.redirect(302, "https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js");
+  });
+
+  app.get("/api-docs/swagger-ui-standalone-preset.js", (req, res) => {
+    res.redirect(302, "https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js");
+  });
+
+  app.get("/api-docs/swagger-ui.css", (req, res) => {
+    res.redirect(302, "https://unpkg.com/swagger-ui-dist@5/swagger-ui.css");
+  });
 
   const url = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}/api-docs`
