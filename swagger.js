@@ -39,15 +39,17 @@ function swaggerDocs(app) {
     res.send(swaggerSpec);
   });
 
+  const swaggerUiOptions = {
+    explorer: true,
+    swaggerOptions: {
+      url: "/api-docs.json",
+    },
+  };
+
   app.use(
     "/api-docs",
-    swaggerUi.serve,
-    swaggerUi.setup(swaggerSpec, {
-      explorer: true,
-      swaggerOptions: {
-        url: "/api-docs.json",
-      },
-    })
+    swaggerUi.serveFiles(swaggerSpec, swaggerUiOptions),
+    swaggerUi.setup(swaggerSpec, swaggerUiOptions)
   );
 
   const url = process.env.VERCEL_URL
