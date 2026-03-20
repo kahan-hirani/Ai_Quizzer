@@ -1,302 +1,250 @@
-# AI Quizzer  
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&height=240&color=0:0F172A,50:0369A1,100:14B8A6&text=AI%20Quizzer&fontColor=ffffff&fontAlignY=40&desc=Adaptive%20Learning%20API%20with%20AI%2C%20Caching%2C%20Analytics&descAlignY=62&animation=twinkling" alt="AI Quizzer Banner" />
+</p>
 
-AI Quizzer is a **Node.js + Express backend application** for adaptive, AI-powered quizzes. It provides **user authentication, AI-generated quiz creation (Groq), submission tracking, hints, leaderboards, Redis caching, email notifications**, and interactive **Swagger API docs**.  
+<p align="center">
+  <a href="https://ai-quizzer-kahanhirani.vercel.app"><img src="https://img.shields.io/badge/Live-Vercel-111827?style=for-the-badge&logo=vercel&logoColor=white" alt="Live"></a>
+  <a href="https://ai-quizzer-kahanhirani.vercel.app/api-docs"><img src="https://img.shields.io/badge/API-Docs-0EA5E9?style=for-the-badge&logo=swagger&logoColor=white" alt="Swagger"></a>
+  <img src="https://img.shields.io/badge/Node.js-20%2B-16A34A?style=for-the-badge&logo=node.js&logoColor=white" alt="Node">
+  <img src="https://img.shields.io/badge/Express-5-111827?style=for-the-badge&logo=express&logoColor=white" alt="Express">
+  <img src="https://img.shields.io/badge/MongoDB-8.18-14532D?style=for-the-badge&logo=mongodb&logoColor=white" alt="MongoDB">
+  <img src="https://img.shields.io/badge/Redis-Upstash-C2410C?style=for-the-badge&logo=redis&logoColor=white" alt="Redis">
+</p>
 
-**Hosted URL**: [https://ai-quizzer-kahanhirani.vercel.app](https://ai-quizzer-kahanhirani.vercel.app)  
+# AI Quizzer
 
-**Important**: All requests must be sent under `/api/v1/`  
-Example: `https://ai-quizzer-kahanhirani.vercel.app/api/v1/users/register`  
+AI Quizzer is a production-ready backend API for adaptive quiz learning.
+It combines LLM-generated questions and hints, secure authentication, submission analytics, Redis caching, and email delivery into one clean Express service.
 
----
+## Why This Project Stands Out
 
-## Table of Contents
-- [Base URL](#base-url)  
-- [User Endpoints](#user-endpoints)  
-- [Quiz Endpoints](#quiz-endpoints)  
-- [Submission Endpoints](#submission-endpoints)  
-- [Hint Endpoints](#hint-endpoints)  
-- [Leaderboard Endpoints](#leaderboard-endpoints)  
-- [Schemas](#schemas)  
-- [Services](#services)  
-- [Libraries Used](#libraries-used)  
-- [Environment Variables](#environment-variables)  
-- [Sample Postman Requests](#sample-postman-requests)  
-- [Quick Usage Guide](#quick-usage-guide)  
-- [Getting Started (Local Development)](#getting-started-local-development)  
-- [Notes](#notes)  
+- Adaptive quiz generation based on learner performance history
+- AI-powered hint generation without revealing answers
+- Submission intelligence with score tracking and improvement tips
+- Leaderboard analytics with fast Redis caching
+- Swagger-first API documentation for rapid testing and integration
+- Serverless-ready deployment on Vercel
 
----
+## Live Links
 
-## Base URL  
-All API endpoints are prefixed with:  
+- Application: https://ai-quizzer-kahanhirani.vercel.app
+- API Base: https://ai-quizzer-kahanhirani.vercel.app/api/v1
+- Swagger UI: https://ai-quizzer-kahanhirani.vercel.app/api-docs
+- Swagger JSON: https://ai-quizzer-kahanhirani.vercel.app/api-docs.json
 
+## Tech Stack
+
+| Layer | Technologies |
+|---|---|
+| Runtime | Node.js |
+| Framework | Express 5 |
+| Database | MongoDB + Mongoose |
+| Cache | Redis via ioredis (Upstash-compatible TLS) |
+| Auth | JWT + bcrypt |
+| AI | Groq Chat Completions API |
+| Validation | Joi |
+| Docs | swagger-jsdoc + swagger-ui-express |
+| Email | Nodemailer |
+| Logging | Morgan |
+| Deployment | Vercel |
+
+## Architecture Overview
+
+```mermaid
+flowchart TD
+    C[Client Apps] --> R[Express Router Layer]
+    R --> M[Validation and Auth Middlewares]
+    M --> CTRL[Controllers]
+    CTRL --> DB[(MongoDB)]
+    CTRL --> REDIS[(Redis Cache)]
+    CTRL --> GROQ[Groq LLM API]
+    CTRL --> MAIL[SMTP via Nodemailer]
+    R --> SWG[Swagger UI and OpenAPI JSON]
 ```
-https://ai-quizzer-kahanhirani.vercel.app/api/v1/
-```
 
-**Examples:**  
-- Correct: `https://ai-quizzer-kahanhirani.vercel.app/api/v1/users/register`  
+## Request Lifecycle
 
----
+1. Client sends a request to /api/v1 endpoint.
+2. Route-level Joi schema validates body or query.
+3. JWT middleware authenticates protected routes.
+4. Controller executes business logic.
+5. Controller reads or writes data in MongoDB.
+6. Cache-aware controllers check Redis before heavy operations.
+7. AI-enabled controllers call Groq for question generation, hints, or tips.
+8. Unified error middleware formats errors into JSON responses.
 
-## User Endpoints  
+## Feature Deep Dive
 
-| Method | Endpoint                  | Description                | Auth Required |
-|--------|---------------------------|----------------------------|--------------|
-| POST   | `/users/register`         | Register a new user        | No           |
-| POST   | `/users/login`            | Login user                 | No           |
-| POST   | `/users/logout`           | Logout user                | Yes          |
-| GET    | `/users/profile`          | Get logged-in user profile | Yes          |
+### 1) Authentication
 
----
+- Register and login endpoints return JWT tokens.
+- Protected routes require Authorization: Bearer token.
+- Profile endpoint resolves authenticated user from token payload.
 
-## Quiz Endpoints  
+### 2) Adaptive Quiz Generation
 
-| Method | Endpoint                  | Description                          | Auth Required |
-|--------|---------------------------|--------------------------------------|--------------|
-| POST   | `/quiz`                   | Create a quiz (AI-generated)         | Yes          |
-| GET    | `/quiz/:quizId`           | Get quiz by ID                       | Yes          |
-| GET    | `/quiz`                   | Get all quizzes by logged-in user    | Yes          |
-| DELETE | `/quiz/:quizId`           | Delete quiz                          | Yes          |
-| POST   | `/quiz/:quizId/hint`      | Get AI-generated hint for a question | Yes          |
+- The service inspects prior submissions for the user.
+- It computes average score and derives question difficulty:
+  - Average above 80: hard
+  - Average above 50: medium
+  - Otherwise: easy
+- Groq generates a strict JSON question set.
+- Questions are persisted to MongoDB and cached in Redis for quick reads.
 
----
+### 3) Hint Engine
 
-## Submission Endpoints  
+- User sends quizId and questionId.
+- API validates ownership and question presence.
+- Groq returns a student-friendly hint without revealing the answer key.
 
-| Method | Endpoint                        | Description                 | Auth Required |
-|--------|---------------------------------|-----------------------------|--------------|
-| POST   | `/submission/:quizId/submit`    | Submit answers              | Yes          |
-| POST   | `/submission/:quizId/retry`     | Retry quiz submission       | Yes          |
-| GET    | `/submission/history`           | Get submission history      | Yes          |
+### 4) Submission and Feedback Intelligence
 
----
+- Answers are evaluated against quiz answer keys.
+- Mistakes are captured with expected vs received options.
+- Attempt count is tracked per user and quiz.
+- Groq generates compact improvement suggestions.
+- Score summary can be emailed to the learner.
 
-## Leaderboard Endpoints  
+### 5) Leaderboard Analytics
 
-| Method | Endpoint              | Description            | Auth Required |
-|--------|-----------------------|------------------------|--------------|
-| GET    | `/leaderboard`        | Get top leaderboard    | Yes          |
+- Aggregates submission data by user.
+- Computes average score, max score, and total attempts.
+- Supports filtering by subject, grade, and limit.
+- Caches leaderboard slices in Redis to reduce DB load.
 
----
+## API Surface
 
-## Swagger Docs  
+All endpoints are under /api/v1.
 
-- Interactive API Docs available at:  
-[`/api-docs`](https://ai-quizzer-kahanhirani.vercel.app/api-docs)  
+### Auth
 
----
-
-## Schemas  
-
-### User
-```json
-{
-  "username": "string (3-30 chars, required)",
-  "email": "string (email, required)",
-  "password": "string (min 6 chars, required)",
-  "role": "student | admin (default: student)"
-}
-```
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| POST | /users/register | Register user | No |
+| POST | /users/login | Login user | No |
+| POST | /users/logout | Logout user | Yes |
+| GET | /users/profile | Current user profile | Yes |
 
 ### Quiz
-```json
-{
-  "subject": "string (required)",
-  "grade": "integer (1-12, required)",
-  "questions": [
-    {
-      "text": "string",
-      "options": ["string", "string", "string", "string"],
-      "answerKey": "string (must be one of the options)",
-      "difficulty": "easy | medium | hard",
-      "hint": "string"
-    }
-  ],
-  "createdBy": "User reference",
-  "adaptiveDifficultyUsed": "boolean"
-}
-```
+
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| POST | /quiz | Create adaptive quiz | Yes |
+| GET | /quiz | List logged-in user quizzes | Yes |
+| GET | /quiz/:quizId | Get one quiz by id | Yes |
+| DELETE | /quiz/:quizId | Delete one quiz | Yes |
+| POST | /quiz/:quizId/hint | Generate hint for question | Yes |
 
 ### Submission
-```json
-{
-  "userId": "User reference",
-  "quizId": "Quiz reference",
-  "answers": [
-    { "questionId": "string", "selectedOption": "string", "isCorrect": "boolean" }
-  ],
-  "score": "integer",
-  "mistakes": [
-    { "questionId": "string", "expected": "string", "got": "string" }
-  ],
-  "suggestions": ["string"],
-  "attemptNo": "integer",
-  "completedAt": "date",
-  "grade": "integer",
-  "subject": "string"
-}
-```
+
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| POST | /submission/:quizId/submit | Submit quiz answers | Yes |
+| POST | /submission/:quizId/retry | Retry same quiz | Yes |
+| GET | /submission/history | Filtered attempt history | Yes |
 
 ### Leaderboard
-```json
-{
-  "userId": "User reference",
-  "username": "string",
-  "avgScore": "number",
-  "maxScore": "number",
-  "attempts": "integer"
-}
-```
 
----
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| GET | /leaderboard | Rank students by performance | Yes |
 
-## Services  
+## Data Model Summary
 
-### Redis  
-- Used for caching quizzes and leaderboard data for fast access.  
-- Configured via `.env`:  
-  - `REDIS_URL` (recommended single URL config).  
+### User
 
-### Email  
-- Sends quiz result notifications to users.  
-- Uses Gmail SMTP via `nodemailer`.  
-- Configured via `.env`:  
-  - `EMAIL_USER`, `EMAIL_PASS`  
+- username
+- email
+- password (hashed)
 
-### Swagger Docs  
-- Interactive API documentation at `/api-docs`.  
-- Powered by `swagger-jsdoc` and `swagger-ui-express`.  
+### Quiz
 
-### Groq AI Integration  
-- Quiz questions and hints are generated using Groq’s LLM API.  
-- API Key: `GROQ_API_KEY` in `.env`.  
+- subject
+- grade
+- questions array
+- createdBy
+- adaptiveDifficultyUsed
 
----
+### Submission
 
-## Libraries Used  
+- userId
+- quizId
+- answers array
+- score
+- mistakes
+- suggestions
+- attemptNo
+- subject and grade snapshots
 
-- express  
-- mongoose  
-- joi  
-- bcrypt  
-- jsonwebtoken  
-- cookie-parser  
-- dotenv  
-- axios  
-- ioredis  
-- nodemailer  
-- swagger-jsdoc  
-- swagger-ui-express  
-- morgan  
+## Environment Variables
 
----
-
-## Environment Variables  
-
-Set these in your `.env` file:  
+Create a .env file in project root:
 
 ```properties
 PORT=5000
-DB_URL=your_mongodb_connection_string
+DB_URL=mongodb://localhost:27017/aiQuizzer
 JWT_SECRET=your_jwt_secret
 GROQ_API_KEY=your_groq_api_key
-REDIS_URL=your_redis_url
-EMAIL_USER=your_gmail_address
+REDIS_URL=redis://default:your_upstash_password@your-upstash-host.upstash.io:6379
+EMAIL_USER=your_email@gmail.com
 EMAIL_PASS=your_gmail_app_password
 ```
 
----
+Notes:
 
-## Sample Postman Requests  
+- REDIS_URL can be plain redis URL.
+- If you accidentally paste the full redis-cli --tls -u command into REDIS_URL, this project now extracts the URL safely.
 
-### Register User  
-```http
-POST https://ai-quizzer-kahanhirani.vercel.app/api/v1/users/register
-Content-Type: application/json
+## Local Development
 
-{
-  "username": "kahanhirani",
-  "email": "kahanhirani073@gmail.com",
-  "password": "kahanhirani123"
-}
+```bash
+npm install
+npm run dev
 ```
 
-### Login User  
-```http
-POST https://ai-quizzer-kahanhirani.vercel.app/api/v1/users/login
-Content-Type: application/json
+Local endpoints:
 
-{
-  "email": "kahanhirani073@gmail.com",
-  "password": "kahanhirani123"
-}
+- API: http://localhost:5000/api/v1
+- Swagger UI: http://localhost:5000/api-docs
+- Swagger JSON: http://localhost:5000/api-docs.json
+
+## Deployment Notes
+
+- Vercel entrypoint uses api/index.js.
+- Swagger docs are exposed with static UI + JSON spec path.
+- For production, ensure all required environment variables are set in Vercel.
+
+## Suggested Testing Flow
+
+1. Register a user.
+2. Login and copy token.
+3. Create quiz with subject, grade, numQuestions.
+4. Fetch quiz and submit answers.
+5. Retry with improved answers.
+6. Open leaderboard with subject and grade filters.
+7. Request hint for a weak question.
+
+## Project Structure
+
+```text
+api/               # Serverless adapter for Vercel
+controllers/       # Business logic and AI integration
+db/                # Mongo and Redis connection setup
+middlewares/       # Auth, validation, centralized error handling
+models/            # Mongoose schemas
+routes/            # API route definitions + Swagger annotations
+utilities/         # Async wrapper, mailer, custom error helper
+validations/       # Joi request schemas
+server.js          # Express bootstrap
+swagger.js         # OpenAPI and Swagger UI setup
 ```
 
-### Create Quiz  
-```http
-POST https://ai-quizzer-kahanhirani.vercel.app/api/v1/quiz
-Authorization: Bearer <JWT_TOKEN>
-Content-Type: application/json
+## Built For
 
-{
-  "subject": "Science",
-  "grade": 8,
-  "numQuestions": 5
-}
-```
-
-### Submit Quiz  
-```http
-POST https://ai-quizzer-kahanhirani.vercel.app/api/v1/submission/<quizId>/submit
-Authorization: Bearer <JWT_TOKEN>
-Content-Type: application/json
-
-{
-  "answers": [
-    { "questionId": "123", "selectedOption": "A" },
-    { "questionId": "124", "selectedOption": "B" }
-  ]
-}
-```
+- Students who need adaptive practice
+- Educators who want fast assessment APIs
+- Developers exploring AI-enhanced backend architecture
 
 ---
 
-## Quick Usage Guide  
-
-1. **Register** → `POST /users/register`  
-2. **Login** → `POST /users/login` (get JWT token)  
-3. **Create a Quiz** → `POST /quiz` (requires token)  
-4. **Attempt Quiz** → `POST /submission/:quizId/submit`  
-5. **Check Leaderboard** → `GET /leaderboard`  
-
----
-
-## Getting Started (Local Development)  
-
-1. Clone repository and install dependencies:  
-   ```sh
-   npm install
-   ```  
-2. Create `.env` file with all required variables.  
-3. Start MongoDB and Redis locally.  
-4. Run server:  
-   ```sh
-   npm run dev
-   ```  
-5. Access Swagger docs at:  
-   [http://localhost:5000/api-docs](http://localhost:5000/api-docs)  
-
----
-
-## Notes  
-
-- All protected endpoints require JWT authentication (`Authorization: Bearer <token>`).  
-- Quizzes and hints are dynamically generated using **Groq AI**.  
-- Redis improves performance with caching.  
-- Email notifications are triggered after submissions.  
-- All endpoints are fully documented in **Swagger UI**.  
-
----
-
- **Enjoy using AI Quizzer!**
+If you like the project, star the repository and share feedback to help shape the next release.
