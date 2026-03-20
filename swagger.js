@@ -1,5 +1,6 @@
 const swaggerJsDoc = require("swagger-jsdoc");
 const swaggerUi = require("swagger-ui-express");
+const path = require("path");
 
 const options = {
   definition: {
@@ -27,13 +28,27 @@ const options = {
     },
     security: [{ bearerAuth: [] }],
   },
-  apis: ["./routes/*.js"],
+  apis: [path.join(__dirname, "routes", "*.js")],
 };
 
 const swaggerSpec = swaggerJsDoc(options);
 
 function swaggerDocs(app) {
-  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  app.get("/api-docs.json", (req, res) => {
+    res.setHeader("Content-Type", "application/json");
+    res.send(swaggerSpec);
+  });
+
+  app.use(
+    "/api-docs",
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerSpec, {
+      explorer: true,
+      swaggerOptions: {
+        url: "/api-docs.json",
+      },
+    })
+  );
 
   const url = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}/api-docs`
